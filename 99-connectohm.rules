@@ -1,0 +1,2 @@
+# We can probably drop the %k from RUN, but let's keep it for now
+KERNEL=="ttyUSB*", PROGRAM=="/usr/bin/awk 'BEGIN {ORS=\"\"} {print substr($1, length($1), 1)}' <<< '%k'", SYMLINK+="ctohm%c", RUN+="/usr/local/bin/ctohm-settings.sh %k'
