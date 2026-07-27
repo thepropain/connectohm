@@ -40,18 +40,26 @@ config = {
     "parity": 0,      # Default: NONE
     "stopbits": 0     # Default: 1
 }
+config_file = "/etc/connectohm.conf"
 
 def save_settings():
     with open(config_file, "w") as f:
-        f.write(str(config))
+        for key,val in config.items():
+            f.write(f"{key}={val}\n");
+    # *** TODO: if /dev/ctohm* exists, trigger udev or run ctohm-settings.sh
 
 def load_settings():
     try:
         with open(config_file, "r") as f:
-            config = f.read()
+            for line in f:
+                key, val = line.split("=")
+                config[key]=int(val)
     except FileNotFoundError:
         print(f"{config_file} not found, recreating.")
-        save_settings();
+        save_settings()
+    else:
+        return
+        # *** TODO: if /dev/ctohm* exists, trigger udev or run ctohm-settings.sh
 
 load_settings()
 
@@ -173,78 +181,78 @@ def render_display():
                 draw_arrow_down(draw)
 
 # We may not be doing this in this script
-def apply_serial_settings():
-    """Applies active menu configuration to the physical Pi serial port."""
-    baud = bitrate_menu[config["bitrate"]].strip()
-    dbits = databits_menu[config["databits"]].strip()
-    parity = parity_menu[config["parity"]].strip()
-    sbits = stopbits_menu[config["stopbits"]].strip()
+# def apply_serial_settings():
+    # """Applies active menu configuration to the physical Pi serial port."""
+    # baud = bitrate_menu[config["bitrate"]].strip()
+    # dbits = databits_menu[config["databits"]].strip()
+    # parity = parity_menu[config["parity"]].strip()
+    # sbits = stopbits_menu[config["stopbits"]].strip()
 
     # Map parity string to stty flags
-    if parity == "NONE":
-        p_flags = "-parenb"
-    elif parity == "EVEN":
-        p_flags = "parenb -parodd"
-    elif parity == "ODD":
-        p_flags = "parenb parodd"
+    # if parity == "NONE":
+        # p_flags = "-parenb"
+    # elif parity == "EVEN":
+        # p_flags = "parenb -parodd"
+    # elif parity == "ODD":
+        # p_flags = "parenb parodd"
 
     # Map stop bits flag
-    s_flag = "cstopb" if sbits == "2" else "-cstopb"
+    # s_flag = "cstopb" if sbits == "2" else "-cstopb"
 
     # Construct and execute stty command on serial port (e.g., /dev/ttyAMA0)
-    cmd = f"stty -F /dev/ttyAMA0 {baud} cs{dbits} {p_flags} {s_flag} raw -echo"
-    try:
-        subprocess.run(cmd, shell=True, check=True)
-        print(f"Serial port configured: {baud} {dbits}{parity[0]}{sbits}")
-    except Exception as e:
-        print(f"Failed to apply serial settings: {e}")
+    # cmd = f"stty -F /dev/ttyAMA0 {baud} cs{dbits} {p_flags} {s_flag} raw -echo"
+    # try:
+        # subprocess.run(cmd, shell=True, check=True)
+        # print(f"Serial port configured: {baud} {dbits}{parity[0]}{sbits}")
+    # except Exception as e:
+        # print(f"Failed to apply serial settings: {e}")
 
 # We're probably going to be doing this with the governor script
-def start_ppp_daemon():
-    global pppd_process
-    stop_ppp_daemon() # Ensure clean state first
+# def start_ppp_daemon():
+    # global pppd_process
+    # stop_ppp_daemon() # Ensure clean state first
 
-    baud = bitrate_menu[config["bitrate"]].strip()
-    # Command array based on your governor settings
-    cmd = [
-        "sudo", "pppd", "/dev/ttyAMA0", baud,
-        "192.168.2.1:192.168.2.2",
-        "local", "ms-dns", "1.1.1.1",
-        "noauth", "passive", "persist"
-    ]
-    try:
-        pppd_process = subprocess.Popen(cmd)
-        print("PPP Daemon Started.")
-    except Exception as e:
-        print(f"Failed to launch pppd: {e}")
+    # baud = bitrate_menu[config["bitrate"]].strip()
+    #Command array based on your governor settings
+    # cmd = [
+        # "sudo", "pppd", "/dev/ttyAMA0", baud,
+        # "192.168.2.1:192.168.2.2",
+        # "local", "ms-dns", "1.1.1.1",
+        # "noauth", "passive", "persist"
+    # ]
+    # try:
+        # pppd_process = subprocess.Popen(cmd)
+        # print("PPP Daemon Started.")
+    # except Exception as e:
+        # print(f"Failed to launch pppd: {e}")
 
 # We're probably going to be doing this with the governor script
-def stop_ppp_daemon():
-    global pppd_process
-    if pppd_process and pppd_process.poll() is None:
-        pppd_process.terminate()
-        pppd_process.wait()
-        pppd_process = None
-        print("PPP Daemon Stopped.")
-    else:
+# def stop_ppp_daemon():
+    # global pppd_process
+    # if pppd_process and pppd_process.poll() is None:
+        # pppd_process.terminate()
+        # pppd_process.wait()
+        # pppd_process = None
+        # print("PPP Daemon Stopped.")
+    # else:
         # Fallback system sweep
-        os.system("sudo killall pppd 2>/dev/null")
+        # os.system("sudo killall pppd 2>/dev/null")
 
 # This is probably needs to go, too
-def update_system_state():
-    """Writes active UI config to /tmp/ for udev and background daemons."""
-    selected_mode = mode_status[config["mode"]].strip()
-    selected_baud = bitrate_menu[config["bitrate"]].strip()
+# def update_system_state():
+    # """Writes active UI config to /tmp/ for udev and background daemons."""
+    # selected_mode = mode_status[config["mode"]].strip()
+    # selected_baud = bitrate_menu[config["bitrate"]].strip()
 
-    with open("/tmp/ctohm_mode", "w") as f:
-        f.write(selected_mode)
+    # with open("/tmp/ctohm_mode", "w") as f:
+        # f.write(selected_mode)
 
-    with open("/tmp/ctohm_baud", "w") as f:
-        f.write(selected_baud)
+    # with open("/tmp/ctohm_baud", "w") as f:
+        # f.write(selected_baud)
 
     # If switching away from PPP, kill any running pppd instances
-    if selected_mode != "PPP":
-        os.system("sudo killall pppd 2>/dev/null")
+    # if selected_mode != "PPP":
+        # os.system("sudo killall pppd 2>/dev/null")
 
 def on_single_tap():
     global main_cursor, sub_cursor 
