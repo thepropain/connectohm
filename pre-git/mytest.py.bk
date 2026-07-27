@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+import time
+from luma.core.interface.serial import i2c
+from luma.core.render import canvas
+from luma.oled.device import ssd1306
+from PIL import ImageFont
+
+# 1. Initialize the I2C pipeline mapping to address 0x3C
+try:
+    serial = i2c(port=1, address=0x3c)
+    device = ssd1306(serial)
+except Exception as e:
+    print(f"Hardware initialization failed: {e}")
+    exit(1)
+
+print("Canvas active! Testing split-color visual grid...")
+
+# 2. Draw our layout grid directly to the screen frame buffer
+oledfont=ImageFont.load("oledfont.pil")
+menu_y=[16, 28, 40]
+main_menu=["  select mode", "  select bitrate", "  select data bits",
+  "select parity", "  select stop bits", "  REBOOT", "  SHUT DOWN"]
+
+def draw_ohm(draw, x, y, fill="black"):
+    """Draws a crisp 7x7 pixel Ohm symbol (Ω)"""
+    # Arch top
+    draw.line((x+2, y, x+4, y), fill=fill)
+    # Sides
+    draw.line((x+1, y+1, x+1, y+3), fill=fill)
+    draw.line((x+5, y+1, x+5, y+3), fill=fill)
+    # Feet curves
+    draw.point((x+2, y+4), fill=fill)
+    draw.point((x+4, y+4), fill=fill)
+    # Bottom feet base
+    draw.line((x, y+5, x+2, y+5), fill=fill)
+    draw.line((x+4, y+5, x+6, y+5), fill=fill)
+
+def draw_arrow_up(draw, x=120, y=19, fill="white"):
+    """Draws a compact 5x5 pixel up-pointing triangle arrow."""
+    # Vertices: Top center, Bottom left, Bottom right
+    points = [
+        (x + 2, y),        # Peak
+        (x,     y + 4),    # Bottom Left
+        (x + 4, y + 4)     # Bottom Right
+    ]
+    draw.polygon(points, fill=fill)
+
+def draw_arrow_down(draw, x=120, y=43, fill="white"):
+    """Draws a compact 5x5 pixel down-pointing triangle arrow."""
+    # Vertices: Top left, Top right, Bottom center
+    points = [
+        (x,     y),        # Top Left
+        (x + 4, y),        # Top Right
+        (x + 2, y + 4)     # Bottom Tip
+    ]
+    draw.polygon(points, fill=fill)
+
+with canvas(device) as draw:
+    #NOTES: text startX is 1 so it doesn't bump the left edge
+    #       text lines are 21 characters wide
+    #       shape startX is 0 so it DOES bump the left edge
+
+    #Top box
+    draw.rectangle((0, 0, 127, 16), fill="white")
+    draw.text((1, 2),  "C  | HAYES 115200 8N1", font=oledfont, fill="black")
+    draw_ohm(draw, x=7, y=6, fill="black")
+    
+    #Menu box
+    draw.text((1, menu_y[0]), main_menu[0], font=oledfont, fill="white")
+    draw.text((1, menu_y[1]), main_menu[1], font=oledfont, fill="white")
+    draw.text((1, menu_y[2]), main_menu[2], font=oledfont, fill="white")
+    
+    #WiFi status line
+    draw.line((0, 52, 127, 52), fill="white")
+    draw.text((1, 52), "SSN: not connected", font=oledfont, fill="white")
+
+    #"More menu items" markers, if needed
+    draw_arrow_down(draw)
+
+    #Cursor, initialized to 0
+    cursor_pos=0
+    draw.text((1, menu_y[cursor_pos]), ">", font=oledfont, fill="white")
+    
+    #loop forever: respond to button presses
+
+# Keep the pixels illuminated for 10 seconds before clearing out
+time.sleep(60)
+

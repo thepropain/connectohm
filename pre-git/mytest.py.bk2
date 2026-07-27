@@ -1,0 +1,194 @@
+#!/usr/bin/env python3
+import time
+import threading
+from gpiozero import Button
+from luma.core.interface.serial import i2c
+from luma.core.render import canvas
+from luma.oled.device import ssd1306
+from PIL import ImageFont
+
+# Initialize Display
+try:
+    serial = i2c(port=1, address=0x3c)
+    device = ssd1306(serial)
+except Exception as e:
+    print(f"Hardware initialization failed: {e}")
+    exit(1)
+
+oledfont = ImageFont.load("oledfont.pil")
+menu_y = [16, 28, 40]
+
+main_menu = [
+    "select mode",
+    "select bitrate",
+    "select data bits",
+    "select parity",
+    "select stop bits",
+    "REBOOT",
+    "SHUT DOWN"
+]
+
+bitrate_menu = [
+    "  300",
+    "  1200",
+    "  2400",
+    "  4800",
+    "  9600",
+    "  19200",
+    "  38400",
+    "  57600",
+    "  115200",
+    "  230400"
+]
+
+mode_menu = [
+    "  PPP",
+    "  HAYES",
+    "  SLIP",
+    "  CSLIP",
+    "  SHELL",
+    "  NULL MODEM",
+    "  LOOPBACK"
+]
+
+mode_status = [
+    "PPP  ",
+    "HAYES",
+    "SLIP ",
+    "CSLIP",
+    "SHELL",
+    "NULLM",
+    "LOOP "
+]
+
+databits_menu = [
+    "  5",
+    "  6",
+    "  7",
+    "  8"
+]
+
+parity_menu = [
+    "  NONE",
+    "  EVEN",
+    "  ODD"
+]
+
+stopbits_menu = [
+    "  1",
+    "  2"
+]
+
+# State Variables
+selected_index = 0
+window_top = 0
+inverted_item = None  # Holds index for 200ms highlight
+
+# Button Setup (GPIO 26 -> GND)
+button = Button(26, pull_up=True, bounce_time=0.05)
+last_release_time = 0
+tap_timer = None
+DOUBLE_TAP_THRESHOLD = 0.3  # seconds
+
+def draw_ohm(draw, x, y, fill="black"):
+    draw.line((x+2, y, x+4, y), fill=fill)
+    draw.line((x+1, y+1, x+1, y+3), fill=fill)
+    draw.line((x+5, y+1, x+5, y+3), fill=fill)
+    draw.point((x+2, y+4), fill=fill)
+    draw.point((x+4, y+4), fill=fill)
+    draw.line((x, y+5, x+2, y+5), fill=fill)
+    draw.line((x+4, y+5, x+6, y+5), fill=fill)
+
+def draw_arrow_up(draw, x=120, y=19, fill="white"):
+    draw.polygon([(x + 2, y), (x, y + 4), (x + 4, y + 4)], fill=fill)
+
+def draw_arrow_down(draw, x=120, y=43, fill="white"):
+    draw.polygon([(x, y), (x + 4, y), (x + 2, y + 4)], fill=fill)
+
+def render_display():
+    global window_top, inverted_item
+    
+    # Keep window aligned with selection
+    if selected_index < window_top:
+        window_top = selected_index
+    elif selected_index >= window_top + 3:
+        window_top = selected_index - 2
+
+    with canvas(device) as draw:
+        # 1. Header Box
+        draw.rectangle((0, 0, 127, 16), fill="white")
+        draw.text((1, 2), "C  | HAYES 115200 8N1", font=oledfont, fill="black")
+        draw_ohm(draw, x=7, y=6, fill="black")
+
+        # 2. Render 3 Menu Items
+        for row in range(3):
+            item_idx = window_top + row
+            if item_idx < len(main_menu):
+                y_pos = menu_y[row]
+                text_str = main_menu[item_idx]
+                
+                # Highlight / Invert check
+                if item_idx == inverted_item:
+                    # Draw solid white bar and black text
+                    draw.rectangle((0, y_pos, 127, y_pos + 11), fill="white")
+                    draw.text((1, y_pos), f"> {text_str}", font=oledfont, fill="black")
+                else:
+                    prefix = "> " if item_idx == selected_index else "  "
+                    draw.text((1, y_pos), f"{prefix}{text_str}", font=oledfont, fill="white")
+
+        # 3. Footer Line
+        draw.line((0, 52, 127, 52), fill="white")
+        draw.text((1, 52), "SSN: not connected", font=oledfont, fill="white")
+
+        # 4. Scroll Arrows
+        if window_top > 0:
+            draw_arrow_up(draw)
+        if window_top + 3 < len(main_menu):
+            draw_arrow_down(draw)
+
+def on_single_tap():
+    global selected_index
+    selected_index = (selected_index + 1) % len(main_menu)
+    render_display()
+
+def on_double_tap():
+    global inverted_item
+    # Trigger 200ms invert visual feedback
+    inverted_item = selected_index
+    render_display()
+    time.sleep(0.2)
+    inverted_item = None
+    render_display()
+    
+    print(f"SELECTED: {main_menu[selected_index]}")
+    # TODO: Connect sub-menus or system actions here!
+
+def handle_button_release():
+    global last_release_time, tap_timer
+    now = time.time()
+    elapsed = now - last_release_time
+    last_release_time = now
+
+    if elapsed < DOUBLE_TAP_THRESHOLD:
+        # Cancel pending single-tap action
+        if tap_timer and tap_timer.is_alive():
+            tap_timer.cancel()
+        on_double_tap()
+    else:
+        # Wait to see if a second tap occurs
+        tap_timer = threading.Timer(DOUBLE_TAP_THRESHOLD, on_single_tap)
+        tap_timer.start()
+
+# Bind release event
+button.when_released = handle_button_release
+
+# Initial render
+render_display()
+
+print("ConnectOhm UI Active. Tap button to navigate...")
+try:
+    while True:
+        time.sleep(1)
+except KeyboardInterrupt:
+    print("\nExiting UI...")
+
