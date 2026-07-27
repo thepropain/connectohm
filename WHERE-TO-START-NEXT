@@ -1,1 +1,1 @@
-# Check that ALL params are being written to tmp, pull pppd start and stop routines. And maybe we just merge apply_serial and update_system?
+Keep cleaning up menu.py, then figure out how to update things (presumably with the governor)

@@ -9,8 +9,8 @@ from luma.core.interface.serial import i2c
 from luma.core.render import canvas
 from luma.oled.device import ssd1306
 from PIL import ImageFont
-from pathlib import Path
-# 1. Initialize Display
+
+# Initialize display
 try:
     serial = i2c(port=1, address=0x3c)
     device = ssd1306(serial)
@@ -18,33 +18,21 @@ except Exception as e:
     print(f"Hardware initialization failed: {e}")
     exit(1)
 
-
+# Load font
 oledfont = ImageFont.load("oledfont.pil")
-menu_y = [16, 28, 40]
 
-# --- MENU DATA STRUCTURES ---
-main_menu = [
-    "select mode",
-    "select bitrate",
-    "select data bits",
-    "select parity",
-    "select stop bits",
-    "REBOOT",
-    "SHUT DOWN"
-]
-
+# Menu data structures
+main_menu = ["select mode", "select bitrate", "select data bits", "select parity", "select stop bits", "REBOOT", "SHUT DOWN"]
 mode_menu = ["  PPP", "  HAYES", "  SLIP", "  CSLIP", "  SHELL", "  NULL MODEM", "  LOOPBACK"]
 mode_status = ["PPP  ", "HAYES", "SLIP ", "CSLIP", "SHELL", "NULLM", "LOOP "]
 bitrate_menu = ["  300", "  1200", "  2400", "  4800", "  9600", "  19200", "  38400", "  57600", "  115200", "  230400"]
 databits_menu = ["  5", "  6", "  7", "  8"]
 parity_menu = ["  NONE", "  EVEN", "  ODD"]
 stopbits_menu = ["  1", "  2"]
-config_file = "/etc/connectohm.conf"
+confirm_menu = []
+menu_y = [16, 28, 40]
 
-# Confirmation menu (Default position: NO)
-confirm_menu = ["ARE YOU SURE?", "  NO", "  YES"]
-
-# --- ACTIVE SYSTEM CONFIGURATION ---
+# Config structures and functions
 config = {
     "mode": 1,        # Default: HAYES
     "bitrate": 8,     # Default: 115200
@@ -67,7 +55,7 @@ def load_settings():
 
 load_settings()
 
-# --- STATE MACHINE TRACKING ---
+# Menu state tracking
 current_menu = "MAIN"
 main_cursor = 0
 sub_cursor = 0
@@ -75,13 +63,13 @@ window_top = 0
 inverted_item = None
 pppd_process = None
 
-# Button Setup (GPIO 26 -> GND)
+# Button setup (GPIO 26 -> GND)
 button = Button(26, pull_up=True, bounce_time=0.05)
 last_release_time = 0
 tap_timer = None
 DOUBLE_TAP_THRESHOLD = 0.3
 
-# --- DRAW HELPERS ---
+# Drawing helper functions
 def draw_ohm(draw, x, y, fill="black"):
     draw.line((x+2, y, x+4, y), fill=fill)
     draw.line((x+1, y+1, x+1, y+3), fill=fill)
@@ -98,7 +86,6 @@ def draw_arrow_down(draw, x=120, y=43, fill="white"):
     draw.polygon([(x, y), (x + 4, y), (x + 2, y + 4)], fill=fill)
 
 def display_message(line1, line2=""):
-    """Utility to display full screen status messages during shutdown/reboot."""
     with canvas(device) as draw:
         draw.rectangle((0, 0, 127, 16), fill="white")
         draw.text((1, 2), "Connect\u00a9 Notice", font=oledfont, fill="black") # Header fallback
@@ -107,15 +94,16 @@ def display_message(line1, line2=""):
             draw.text((1, 38), line2, font=oledfont, fill="white")
 
 def get_active_menu():
-    if current_menu == "MAIN": return main_menu, main_cursor
-    elif current_menu == "MODE": return mode_menu, sub_cursor
-    elif current_menu == "BITRATE": return bitrate_menu, sub_cursor
-    elif current_menu == "DATABITS": return databits_menu, sub_cursor
-    elif current_menu == "PARITY": return parity_menu, sub_cursor
-    elif current_menu == "STOPBITS": return stopbits_menu, sub_cursor
-    elif current_menu in ["CONFIRM_REBOOT", "CONFIRM_SHUTDOWN"]:
-        return confirm_menu, sub_cursor
+    match current_menu:
+        case "MAIN": return main_menu, main_cursor
+        case "MODE": return mode_menu, sub_cursor
+        case "BITRATE": return bitrate_menu, sub_cursor
+        case "DATABITS": return databits_menu, sub_cursor
+        case "PARITY": return parity_menu, sub_cursor
+        case "STOPBITS": return stopbits_menu, sub_cursor
+        case _: return
 
+# Main drawing function, updates the screen
 def render_display():
     global window_top
     active_list, cursor_pos = get_active_menu()
@@ -136,12 +124,12 @@ def render_display():
     header_str = f"C  | {m_str} {b_str} {d_str}{p_str}{s_str}"
 
     with canvas(device) as draw:
-        # 1. Header Box
+        # Draw our status box and fill it in
         draw.rectangle((0, 0, 127, 16), fill="white")
         draw.text((1, 2), header_str, font=oledfont, fill="black")
         draw_ohm(draw, x=7, y=6, fill="black")
 
-        # 2. Render Options
+        # Draw our menus and highlights (if any)
         if current_menu in ["CONFIRM_REBOOT", "CONFIRM_SHUTDOWN"]:
             # Custom prompt for confirmation
             title = "REBOOT?" if current_menu == "CONFIRM_REBOOT" else "SHUT DOWN?"
@@ -173,7 +161,7 @@ def render_display():
                         prefix = "> " if item_idx == cursor_pos else "  "
                         draw.text((1, y_pos), f"{prefix}{display_text}", font=oledfont, fill="white")
 
-        # 3. Footer Line
+        # WiFi status line
         draw.line((0, 52, 127, 52), fill="white")
         draw.text((1, 52), "SSN: not connected", font=oledfont, fill="white")
 
@@ -184,6 +172,7 @@ def render_display():
             if window_top + 3 < len(active_list):
                 draw_arrow_down(draw)
 
+# We may not be doing this in this script
 def apply_serial_settings():
     """Applies active menu configuration to the physical Pi serial port."""
     baud = bitrate_menu[config["bitrate"]].strip()
@@ -210,6 +199,7 @@ def apply_serial_settings():
     except Exception as e:
         print(f"Failed to apply serial settings: {e}")
 
+# We're probably going to be doing this with the governor script
 def start_ppp_daemon():
     global pppd_process
     stop_ppp_daemon() # Ensure clean state first
@@ -228,6 +218,7 @@ def start_ppp_daemon():
     except Exception as e:
         print(f"Failed to launch pppd: {e}")
 
+# We're probably going to be doing this with the governor script
 def stop_ppp_daemon():
     global pppd_process
     if pppd_process and pppd_process.poll() is None:
@@ -239,6 +230,7 @@ def stop_ppp_daemon():
         # Fallback system sweep
         os.system("sudo killall pppd 2>/dev/null")
 
+# This is probably needs to go, too
 def update_system_state():
     """Writes active UI config to /tmp/ for udev and background daemons."""
     selected_mode = mode_status[config["mode"]].strip()
@@ -282,17 +274,18 @@ def on_double_tap():
     inverted_item = None
     if current_menu == "MAIN":
         window_top = 0
-        if main_cursor == 0: current_menu = "MODE"; sub_cursor = config["mode"]
-        elif main_cursor == 1: current_menu = "BITRATE"; sub_cursor = config["bitrate"]
-        elif main_cursor == 2: current_menu = "DATABITS"; sub_cursor = config["databits"]
-        elif main_cursor == 3: current_menu = "PARITY"; sub_cursor = config["parity"]
-        elif main_cursor == 4: current_menu = "STOPBITS"; sub_cursor = config["stopbits"]
-        elif main_cursor == 5:
-            current_menu = "CONFIRM_REBOOT"
-            sub_cursor = 1  # Default cursor position on 'NO'
-        elif main_cursor == 6:
-            current_menu = "CONFIRM_SHUTDOWN"
-            sub_cursor = 1  # Default cursor position on 'NO'
+        match main_cursor:   
+            case 0: current_menu = "MODE"; sub_cursor = config["mode"]
+            case 1: current_menu = "BITRATE"; sub_cursor = config["bitrate"]
+            case 2: current_menu = "DATABITS"; sub_cursor = config["databits"]
+            case 3: current_menu = "PARITY"; sub_cursor = config["parity"]
+            case 4: current_menu = "STOPBITS"; sub_cursor = config["stopbits"]
+            case 5:
+                current_menu = "CONFIRM_REBOOT"
+                sub_cursor = 1  # Default cursor position on 'NO'
+            case 6:
+                current_menu = "CONFIRM_SHUTDOWN"
+                sub_cursor = 1  # Default cursor position on 'NO'
 
     elif current_menu in ["CONFIRM_REBOOT", "CONFIRM_SHUTDOWN"]:
         if sub_cursor == 1:
@@ -316,23 +309,16 @@ def on_double_tap():
                 return
     else:
         # Save selection from Submenu & Return to Main
-        if current_menu == "MODE": config["mode"] = sub_cursor
-        elif current_menu == "BITRATE": config["bitrate"] = sub_cursor
-        elif current_menu == "DATABITS": config["databits"] = sub_cursor
-        elif current_menu == "PARITY": config["parity"] = sub_cursor
-        elif current_menu == "STOPBITS": config["stopbits"] = sub_cursor
+        match current_menu:
+            case "MODE": config["mode"] = sub_cursor
+            case "BITRATE": config["bitrate"] = sub_cursor
+            case "DATABITS": config["databits"] = sub_cursor
+            case "PARITY": config["parity"] = sub_cursor
+            case "STOPBITS": config["stopbits"] = sub_cursor
 
-        # Apply updated settings to serial hardware
-        apply_serial_settings()
-
-        # Handle Mode Setting
+        save_settings()
         selected_mode_name = mode_status[config["mode"]].strip()
-        update_system_state()
-
-#        if selected_mode_name == "PPP":
-#            start_ppp_daemon()
-#        else:
-#            stop_ppp_daemon()
+        # Probably need to see if we need to call the governor or something
 
         current_menu = "MAIN"
         window_top = 0
@@ -355,11 +341,14 @@ def handle_button_release():
 
 button.when_released = handle_button_release
 
+# *** MAIN CODE BEGINS HERE ***
+
 # Initial Render
 render_display()
 
 print("ConnectOhm Full UI Running...")
 try:
+    # I think I'd rather loop until <ESC> is pressed
     while True:
         time.sleep(1)
 except KeyboardInterrupt:
