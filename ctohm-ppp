@@ -1,4 +1,4 @@
-/dev/clie-serial
+/dev/ctohm0
 115200
 
 # Tell the Pi its interface IP is 192.168.2.1
@@ -11,7 +11,10 @@ require-pap
 
 local
 lock
-nodetach
+
+# Testing: we're terminating on signal 2, which I think means we HAVE to detach. And if this fixes THAT issue, try having those 1st two lines passed from ctohm-settings.sh
+# nodetach
+
 nocrtscts
 passive
 silent
@@ -20,3 +23,5 @@ persist
 # Pass DNS directly through the handshake
 ms-dns 1.1.1.1
 ms-dns 8.8.8.8
+
+logfile /var/log/ctohm-ppp.log

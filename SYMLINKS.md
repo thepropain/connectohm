@@ -6,6 +6,8 @@
 
 - ctohm-ppp -> /etc/ppp/peers/ctohm-ppp
 
+- ctohm-settings.service -> /etc/systemd/system/ctohm-settings.service
+
 - ctohm-settings.sh -> /usr/local/bin/ctohm-settings.sh
 
 - rules.v4 -> /etc/iptables/rules.v4

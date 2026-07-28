@@ -1,13 +1,16 @@
 #!/bin/bash
 
-cfgfile="/etc/connectohm"
+# This will probably need to be UN-hardcoded later
+node="/dev/ctohm0"
+cfgfile="/etc/connectohm.conf"
 pidfile="/var/run/ctohm-mode.pid"
+
 
 # load config values, is formatted so we can just include it directly
 if [ -f $cfgfile ]; then
     source $cfgfile
 else
-    mode=1
+        mode=1
 	bitrate=8
 	databits=3
 	parity=0
@@ -42,22 +45,25 @@ else
     sbparm="cstopb"
 fi
 
-# Set tty params
-stty -F $1 ${bitrate_vals[bitrate]} cs${databits_vals[databits]} $pparm $sbparm raw -echo
+# Set tty params. NOTE: I misunderstood when this was to be done. We'll revisit this later, if not for HAYES mode, then for SHELL mode.
+# stty -F $node ${bitrate_vals[bitrate]} cs${databits_vals[databits]} $pparm $sbparm raw -echo
 
 # Kill the previous program mode (if there is one and it is still running)
 # NOTE: at least with pppd, it has been my experience that it dies when the tty it is on disappears
 # NOTE 2: We could just "killall -9 {each mode program}" if gettings PIDs proves to be a problem
-if [ -f $pidfile ]; then
-    killpid=$(<$pidfile)
-    kill -9 $killpid
-    rm $pidfile
-fi
+# if [ -f $pidfile ]; then
+    # killpid=$(<$pidfile)
+    # kill $killpid
+    # rm $pidfile
+# fi
 
 # Run the new mode
 case "$mode" in
     # PPP
     "0")
-        # HERE WE GO, HOMIE!
+        # May need to look into modifying the 1st 2 lines of ctohm-ppp
+		# OR may need to go back to passing node and bitrate
+        pppd call ctohm-ppp &
+        echo $! > $pidfile
         ;;
 esac
