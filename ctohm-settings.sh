@@ -3,7 +3,7 @@
 cfgfile="/etc/connectohm"
 pidfile="/var/run/ctohm-mode.pid"
 
-# load config values which should is formatted so we can just include it directly
+# load config values, is formatted so we can just include it directly
 if [ -f $cfgfile ]; then
     source $cfgfile
 else
@@ -45,7 +45,9 @@ fi
 # Set tty params
 stty -F $1 ${bitrate_vals[bitrate]} cs${databits_vals[databits]} $pparm $sbparm raw -echo
 
-# Kill the previous program mode (if there is one)
+# Kill the previous program mode (if there is one and it is still running)
+# NOTE: at least with pppd, it has been my experience that it dies when the tty it is on disappears
+# NOTE 2: We could just "killall -9 {each mode program}" if gettings PIDs proves to be a problem
 if [ -f $pidfile ]; then
     killpid=$(<$pidfile)
     kill -9 $killpid

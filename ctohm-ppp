@@ -1,0 +1,22 @@
+/dev/clie-serial
+115200
+
+# Tell the Pi its interface IP is 192.168.2.1
+192.168.2.1:
+
+# The magic ticket: tells pppd to look in the secrets file 
+# to assign a dynamic IP to the client
+auth
+require-pap
+
+local
+lock
+nodetach
+nocrtscts
+passive
+silent
+persist
+
+# Pass DNS directly through the handshake
+ms-dns 1.1.1.1
+ms-dns 8.8.8.8
