@@ -1,10 +1,13 @@
 #!/bin/bash
 
-# This will probably need to be UN-hardcoded later
-node="/dev/ctohm0"
-cfgfile="/etc/connectohm.conf"
-pidfile="/var/run/ctohm-mode.pid"
+# NOTE: Palm OS gives 2 nodes. I got a feeling that's going to cause problems. Doing what we can to avoid one now.
+runfile="/var/run/ctohm-settings-running"
+if [ -f $runfile ];
+    exit 0
+fi
+touch $runfile
 
+cfgfile="/etc/connectohm.conf"
 
 # load config values, is formatted so we can just include it directly
 if [ -f $cfgfile ]; then
@@ -45,25 +48,22 @@ else
     sbparm="cstopb"
 fi
 
-# Set tty params. NOTE: I misunderstood when this was to be done. We'll revisit this later, if not for HAYES mode, then for SHELL mode.
+# Set tty params.
+# NOTE: I misunderstood when this was to be done. We'll revisit this later, if not for HAYES mode, then for SHELL mode.
 # stty -F $node ${bitrate_vals[bitrate]} cs${databits_vals[databits]} $pparm $sbparm raw -echo
 
-# Kill the previous program mode (if there is one and it is still running)
-# NOTE: at least with pppd, it has been my experience that it dies when the tty it is on disappears
-# NOTE 2: We could just "killall -9 {each mode program}" if gettings PIDs proves to be a problem
-# if [ -f $pidfile ]; then
-    # killpid=$(<$pidfile)
-    # kill $killpid
-    # rm $pidfile
-# fi
+# Kill the previous program modes
+# NOTE: Since Palm OS gives 2 nodes and Linux likes to juggle their order, I gave up on PID tracking.
+killall pppd
 
 # Run the new mode
 case "$mode" in
     # PPP
     "0")
-        # May need to look into modifying the 1st 2 lines of ctohm-ppp
-		# OR may need to go back to passing node and bitrate
-        pppd call ctohm-ppp &
-        echo $! > $pidfile
+        # Again, Palm OS multi-node juggling. Just run pppd on ALL ctohm nodes
+        for node in /dev/ctohm?; do
+            pppd $node ${bitrate_vals[bitrate]} call ctohm-ppp &
         ;;
 esac
+
+rm $runfile
