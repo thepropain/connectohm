@@ -2,7 +2,8 @@
 
 # NOTE: Palm OS gives 2 nodes. I got a feeling that's going to cause problems. Doing what we can to avoid one now.
 runfile="/var/run/ctohm-settings-running"
-if [ -f $runfile ];
+if [ -f $runfile ]; then
+    echo "Already running, exiting..."
     exit 0
 fi
 touch $runfile
@@ -56,13 +57,22 @@ fi
 # NOTE: Since Palm OS gives 2 nodes and Linux likes to juggle their order, I gave up on PID tracking.
 killall pppd
 
+# If we don't have at least ctohm0 to work on, we better stop now
+if [ ! -L /dev/ctohm0 ]; then
+    rm $runfile
+    exit 0
+fi
+
 # Run the new mode
 case "$mode" in
     # PPP
     "0")
         # Again, Palm OS multi-node juggling. Just run pppd on ALL ctohm nodes
-        for node in /dev/ctohm?; do
+        for node in /dev/ctohm*
+        do
+            echo "Looping on ${node} with ${bitrate_vals[bitrate]} as `whoami`"
             pppd $node ${bitrate_vals[bitrate]} call ctohm-ppp &
+        done
         ;;
 esac
 
