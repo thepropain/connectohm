@@ -1,3 +1,5 @@
-# if we get a USB serial device node, create a ctohm symlink and start the ctohm-settings service
-# NOTE: we have to do it as a systemd service to escape udev sandboxing and prevent blocking
-KERNEL=="ttyUSB[0-9]", SYMLINK+="ctohm%n", TAG+="systemd", ENV{SYSTEMD_WANTS}="ctohm-settings.service"
+# Match multi-port USB adapters (like Palm OS Visor/Clié drivers) on Interface 01
+KERNEL=="ttyUSB[0-9]", ENV{ID_USB_INTERFACE_NUM}=="01", SYMLINK+="ctohm0", TAG+="systemd", ENV{SYSTEMD_WANTS}="ctohm-settings.service"
+
+# Match single-port USB adapters (where interface num is 00 or unset)
+KERNEL=="ttyUSB[0-9]", ENV{ID_USB_INTERFACE_NUM}=="00", ATTRS{bNumInterfaces}=="1", SYMLINK+="ctohm0", TAG+="systemd", ENV{SYSTEMD_WANTS}="ctohm-settings.service"

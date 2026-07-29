@@ -1,12 +1,6 @@
 #!/bin/bash
 
-# NOTE: Palm OS gives 2 nodes. I got a feeling that's going to cause problems. Doing what we can to avoid one now.
-runfile="/var/run/ctohm-settings-running"
-if [ -f $runfile ]; then
-    echo "Already running, exiting..."
-    exit 0
-fi
-touch $runfile
+node="/dev/ctohm0"
 
 cfgfile="/etc/connectohm.conf"
 
@@ -49,31 +43,33 @@ else
     sbparm="cstopb"
 fi
 
-# Set tty params.
-# NOTE: I misunderstood when this was to be done. We'll revisit this later, if not for HAYES mode, then for SHELL mode.
-# stty -F $node ${bitrate_vals[bitrate]} cs${databits_vals[databits]} $pparm $sbparm raw -echo
+# Trap SIGTERM/SIGINT so when systemd stops the service, the script exits cleanly
+trap "exit 0" SIGTERM SIGINT
 
-# Kill the previous program modes
-# NOTE: Since Palm OS gives 2 nodes and Linux likes to juggle their order, I gave up on PID tracking.
-killall pppd
-
-# If we don't have at least ctohm0 to work on, we better stop now
-if [ ! -L /dev/ctohm0 ]; then
-    rm $runfile
-    exit 0
-fi
-
-# Run the new mode
 case "$mode" in
-    # PPP
-    "0")
-        # Again, Palm OS multi-node juggling. Just run pppd on ALL ctohm nodes
-        for node in /dev/ctohm*
-        do
-            echo "Looping on ${node} with ${bitrate_vals[bitrate]} as `whoami`"
-            pppd $node ${bitrate_vals[bitrate]} call ctohm-ppp &
-        done
+    "0") # PPP
+        echo "Launching PPP mode..."
+        pppd "$node" "${bitrate_vals[bitrate]}" call ctohm-ppp &
+        ;;
+
+    "1") # HAYES
+        echo "Launching Hayes modem bridge..."
+        # e.g., tcpser or socat bridge background job
+        tcpser -s "${bitrate_vals[bitrate]}" -d "$node" &
+        ;;
+
+    "2") # SLIP
+        echo "Launching SLIP daemon..."
+        slattach -p slip -s "${bitrate_vals[bitrate]}" "$node" &
+        ;;
+
+    "3") # SHELL
+        echo "Launching Serial Shell..."
+        agetty -L "${bitrate_vals[bitrate]}" ctohm0 vt100 &
         ;;
 esac
 
-rm $runfile
+# -------------------------------------------------------------
+# UNIVERSAL BLOCK: Wait for ANY background process spawned above
+# -------------------------------------------------------------
+wait
