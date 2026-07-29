@@ -1,6 +1,12 @@
 #!/bin/bash
 
-node="/dev/ctohm0"
+if [ -z "$1" ]; then
+    echo "No node specified! Usage: ctohm-settings.sh ctohm0"
+    exit 1
+fi
+
+
+node="/dev/$1"
 
 cfgfile="/etc/connectohm.conf"
 
@@ -25,13 +31,13 @@ databits_vals=("5" "6" "7" "8")
 
 # Translate parity to parameters for stty
 case "$parity" in
-    "0")
+    "0") # NONE
 	    pparm="-parenb"
 		;;
-	"1")
+	"1") #EVEN
 	    pparm="parenb -parodd"
 		;;
-	"2")
+	"2") # ODD
 	    pparm="parenb parodd"
 		;;
 esac
@@ -43,33 +49,28 @@ else
     sbparm="cstopb"
 fi
 
-# Trap SIGTERM/SIGINT so when systemd stops the service, the script exits cleanly
-trap "exit 0" SIGTERM SIGINT
+# Set comm parameters
+stty -F $node ${bitrate_vals[bitrate]} cs${databits_vals[databits]} $pparm $sbparm raw -echo
 
 case "$mode" in
     "0") # PPP
-        echo "Launching PPP mode..."
-        pppd "$node" "${bitrate_vals[bitrate]}" call ctohm-ppp &
+        echo "Launching PPP mode on $node..."
+        # 'exec' replaces this shell with pppd so pppd runs directly in the background
+        exec pppd "$node" "${bitrate_vals[bitrate]}" call ctohm-ppp
         ;;
 
     "1") # HAYES
-        echo "Launching Hayes modem bridge..."
-        # e.g., tcpser or socat bridge background job
-        tcpser -s "${bitrate_vals[bitrate]}" -d "$node" &
+        echo "Launching Hayes modem bridge on $node..."
+        exec tcpser -s "${bitrate_vals[bitrate]}" -d "$node"
         ;;
 
     "2") # SLIP
-        echo "Launching SLIP daemon..."
-        slattach -p slip -s "${bitrate_vals[bitrate]}" "$node" &
+        echo "Launching SLIP daemon on $node..."
+        exec slattach -p slip -s "${bitrate_vals[bitrate]}" "$node"
         ;;
 
     "3") # SHELL
-        echo "Launching Serial Shell..."
-        agetty -L "${bitrate_vals[bitrate]}" ctohm0 vt100 &
+        echo "Launching Serial Shell on $node..."
+        exec agetty -L "${bitrate_vals[bitrate]}" "${node#/dev/}" vt100
         ;;
 esac
-
-# -------------------------------------------------------------
-# UNIVERSAL BLOCK: Wait for ANY background process spawned above
-# -------------------------------------------------------------
-wait

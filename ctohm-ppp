@@ -14,7 +14,7 @@ require-pap
 local
 lock
 # This was for PID capturing, but we gave up on that, and I think it may be causing a problem
-# nodetach
+nodetach
 nocrtscts
 passive
 silent

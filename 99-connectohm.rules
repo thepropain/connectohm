@@ -1,5 +1,1 @@
-# Match multi-port USB adapters (like Palm OS Visor/Clié drivers) on Interface 01
-KERNEL=="ttyUSB[0-9]", ENV{ID_USB_INTERFACE_NUM}=="01", SYMLINK+="ctohm0", TAG+="systemd", ENV{SYSTEMD_WANTS}="ctohm-settings.service"
-
-# Match single-port USB adapters (where interface num is 00 or unset)
-KERNEL=="ttyUSB[0-9]", ENV{ID_USB_INTERFACE_NUM}=="00", ATTRS{bNumInterfaces}=="1", SYMLINK+="ctohm0", TAG+="systemd", ENV{SYSTEMD_WANTS}="ctohm-settings.service"
+ACTION=="add", SUBSYSTEM=="tty", KERNEL=="ttyUSB*", SYMLINK+="ctohm%n", RUN+="/usr/bin/systemd-run --no-block /usr/local/bin/ctohm-settings.sh ctohm%n"
