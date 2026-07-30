@@ -4,11 +4,15 @@
 
 - ctohm-menu.py -> /usr/local/bin/ctohm-menu.py
 
+- ctohm-menu.service -> /etc/systemd/system/ctohm-menu.service
+
 - ctohm-ppp -> /etc/ppp/peers/ctohm-ppp
 
-- ctohm-settings.service -> /etc/systemd/system/ctohm-settings.service
-
 - ctohm-settings.sh -> /usr/local/bin/ctohm-settings.sh
+
+- oledfont.pbm -> /usr/local/lib/oledfont.pbm
+
+- oledfont.pil -> /usr/local/lib/oledfont.pil
 
 - rules.v4 -> /etc/iptables/rules.v4
 

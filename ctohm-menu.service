@@ -1,0 +1,26 @@
+[Unit]
+Description=ConnectOhm OLED Menu UI
+# Wait until multi-user system and hardware drivers are initialized
+After=multi-user.target i2c.service
+
+[Service]
+Type=simple
+# User running the script (root or pi - root is recommended if accessing low-level GPIO/I2C directly)
+User=root
+
+# Path to working directory (so relative paths like fonts/graphics load correctly)
+WorkingDirectory=/usr/local/lib/connectohm
+
+# Command to execute (-u disables Python output buffering so prints appear instantly in journalctl)
+ExecStart=/usr/bin/python3 -u /usr/local/bin/ctohm-menu.py
+
+# Restart policy: if the UI crashes or exits unexpectedly, restart after 3 seconds
+Restart=always
+RestartSec=3s
+
+# Send SIGTERM on stop/shutdown so Python can run cleanup handlers
+KillMode=mixed
+TimeoutStopSec=5s
+
+[Install]
+WantedBy=multi-user.target
