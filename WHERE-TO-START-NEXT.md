@@ -1,1 +1,1 @@
-Maybe HAYES mode testing, maybe WiFi status line. Who knows.
+SLIP and CSLIP modes, maybe get an idea of what it'll take to port ZiModem
