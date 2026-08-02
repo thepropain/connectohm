@@ -20,6 +20,8 @@
 
 - ctohm-halt<sup>1</sup> -> /lib/systemd/system-shutdown/ctohm-halt
 
-
+- ctohm-boot<sup>2</sup> -> /usr/local/bin/ctohm-boot
 
 <sup>1</sup> obtained from compiling ctohm-halt.c (`gcc -O2 ctohm-halt.c -o ctohm-halt`)
+
+<sup>2</sup> obtained from compiling ctohm-halt.c (`gcc -O2 ctohm-boot.c -o ctohm-boot`)

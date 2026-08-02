@@ -1,0 +1,15 @@
+[Unit]
+Description=ConnectOhm Early Boot OLED Splash
+DefaultDependencies=no
+# Fire up as soon as /dev and basic system initialization are ready
+After=systemd-modules-load.service local-fs.target
+Before=sysinit.target multi-user.target ctohm-menu.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/ctohm-boot
+# Run once and stay active so systemd knows boot splash is done
+RemainAfterExit=yes
+
+[Install]
+WantedBy=sysinit.target

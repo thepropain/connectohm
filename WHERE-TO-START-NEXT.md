@@ -1,1 +1,1 @@
-Boot splash on OLED, then HAYES mode testing
+Maybe HAYES mode testing, maybe WiFi status line. Who knows.

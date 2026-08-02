@@ -98,7 +98,7 @@ def draw_arrow_down(draw, x=120, y=43, fill="white"):
 def display_message(line1, line2=""):
     with canvas(device) as draw:
         draw.rectangle((0, 0, 127, 16), fill="white")
-        draw.text((1, 2), "Connect\u00a9 Notice", font=oledfont, fill="black") # Header fallback
+        draw.text((1, 2), "ConnectOhm Notice", font=oledfont, fill="black") # Header fallback
         draw.text((1, 24), line1, font=oledfont, fill="white")
         if line2:
             draw.text((1, 38), line2, font=oledfont, fill="white")
@@ -209,7 +209,7 @@ def on_double_tap():
     inverted_item = None
     if current_menu == "MAIN":
         window_top = 0
-        match main_cursor:   
+        match main_cursor:
             case 0: current_menu = "MODE"; sub_cursor = config["mode"]
             case 1: current_menu = "BITRATE"; sub_cursor = config["bitrate"]
             case 2: current_menu = "DATABITS"; sub_cursor = config["databits"]
