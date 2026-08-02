@@ -1,1 +1,1 @@
-Reboot test, then get the hardware stable enough to be transported to other equipment for mode testing. Maaaaaybe see about taking the ZiModem off the serial terminal and using that in a more convenient location than that chair next to the workbench.
+Boot splash on OLED, then HAYES mode testing

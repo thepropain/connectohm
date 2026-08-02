@@ -1,0 +1,14 @@
+[Unit]
+Description=ConnectOhm Final Safe to Unplug Display
+DefaultDependencies=no
+Requires=sysinit.target
+After=sysinit.target final.target ctohm-menu.service
+Before=poweroff.target halt.target reboot.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/bin/ctohm-halt-screen.py
+TimeoutSec=5
+
+[Install]
+WantedBy=poweroff.target halt.target

@@ -17,3 +17,9 @@
 - rules.v4 -> /etc/iptables/rules.v4
 
 - pap-secrets -> /etc/ppp/pap-secrets
+
+- ctohm-halt<sup>1</sup> -> /lib/systemd/system-shutdown/ctohm-halt
+
+
+
+<sup>1</sup> obtained from compiling ctohm-halt.c (`gcc -O2 ctohm-halt.c -o ctohm-halt`)

@@ -14,6 +14,7 @@ from PIL import ImageFont
 try:
     serial = i2c(port=1, address=0x3c)
     device = ssd1306(serial)
+    device.cleanup = lambda: None
 except Exception as e:
     print(f"Hardware initialization failed: {e}")
     exit(1)
@@ -29,7 +30,7 @@ bitrate_menu = ["  300", "  1200", "  2400", "  4800", "  9600", "  19200", "  3
 databits_menu = ["  5", "  6", "  7", "  8"]
 parity_menu = ["  NONE", "  EVEN", "  ODD"]
 stopbits_menu = ["  1", "  2"]
-confirm_menu = []
+confirm_menu = ["", "  NO", "  YES"]
 menu_y = [16, 28, 40]
 
 # Config structures and functions
@@ -110,7 +111,7 @@ def get_active_menu():
         case "DATABITS": return databits_menu, sub_cursor
         case "PARITY": return parity_menu, sub_cursor
         case "STOPBITS": return stopbits_menu, sub_cursor
-        case _: return
+        case _: return confirm_menu, sub_cursor
 
 # Main drawing function, updates the screen
 def render_display():
@@ -195,7 +196,7 @@ def on_single_tap():
         else:
             sub_cursor = next_pos
 
-        render_display()
+    render_display()
 
 def on_double_tap():
     global current_menu, sub_cursor, window_top, inverted_item, config
@@ -236,7 +237,7 @@ def on_double_tap():
                 os.system("sudo reboot")
                 return
             elif current_menu == "CONFIRM_SHUTDOWN":
-                display_message("SHUTTING DOWN...", "Safe to unplug soon")
+                display_message("SHUTTING DOWN...", "Please wait...")
                 time.sleep(2.0)
                 device.clear()
                 os.system("sudo poweroff")
