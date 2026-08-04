@@ -24,8 +24,8 @@ oledfont = ImageFont.load("oledfont.pil")
 
 # Menu data structures
 main_menu = ["select mode", "select bitrate", "select data bits", "select parity", "select stop bits", "REBOOT", "SHUT DOWN"]
-mode_menu = ["  PPP", "  HAYES", "  SLIP", "  CSLIP", "  SHELL", "  NULL MODEM", "  LOOPBACK"]
-mode_status = ["PPP  ", "HAYES", "SLIP ", "CSLIP", "SHELL", "NULLM", "LOOP "]
+mode_menu = ["  PPP", "  HAYES", "  SLIP/CSLIP", "  SHELL", "  NULL MODEM", "  LOOPBACK"]
+mode_status = ["PPP  ", "HAYES", "CSLIP", "SHELL", "NULLM", "LOOP "]
 bitrate_menu = ["  300", "  1200", "  2400", "  4800", "  9600", "  19200", "  38400", "  57600", "  115200", "  230400"]
 databits_menu = ["  5", "  6", "  7", "  8"]
 parity_menu = ["  NONE", "  EVEN", "  ODD"]
