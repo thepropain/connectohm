@@ -16,8 +16,7 @@ This is NOT ready for primetime yet.
 
 - Maaaaybe a chat room kinda thing? That feels a little silly, tho. I mean, if we're going to have a shell mode, just log in and use IRC or whatever.
 
-- I was originally going to use tcpser for Hayes mode, but I think I want to use ZiModem instead. For now, I've got an ESP32 board that I'm going to wire in, but I want to port ZiModem and add/remove some stuff.
-
 ###### What I'm working on now
 
-- Revamping Hayes mode to use ZiModem instead of tcpser.
+- Some testing (read "playing") with real hardware.
+- Need to scrounge up some dinero for some parts.

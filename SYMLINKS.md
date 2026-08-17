@@ -22,6 +22,10 @@
 
 - ctohm-boot<sup>2</sup> -> /usr/local/bin/ctohm-boot
 
+- tcpser<sup>3</sup> -> /usr/bin/tcpser
+
 <sup>1</sup> obtained from compiling ctohm-halt.c (`gcc -O2 ctohm-halt.c -o ctohm-halt`)
 
-<sup>2</sup> obtained from compiling ctohm-halt.c (`gcc -O2 ctohm-boot.c -o ctohm-boot`)
+<sup>2</sup> obtained from compiling ctohm-boot.c (`gcc -O2 ctohm-boot.c -o ctohm-boot`)
+
+<sup>3</sup> customized version (see https://github.com/thepropain/tcpser)

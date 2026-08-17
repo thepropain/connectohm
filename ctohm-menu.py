@@ -4,6 +4,7 @@ import os
 import threading
 import subprocess
 import signal
+import re
 from gpiozero import Button
 from luma.core.interface.serial import i2c
 from luma.core.render import canvas
@@ -22,6 +23,7 @@ except Exception as e:
 # Load font
 oledfont = ImageFont.load("oledfont.pil")
 
+mode_programs = ["pppd", "tcpser", "slirp", "agetty"]
 # Menu data structures
 main_menu = ["select mode", "select bitrate", "select data bits", "select parity", "select stop bits", "REBOOT", "SHUT DOWN"]
 mode_menu = ["  PPP", "  HAYES", "  SLIP/CSLIP", "  SHELL", "  NULL MODEM", "  LOOPBACK"]
@@ -78,6 +80,46 @@ button = Button(26, pull_up=True, bounce_time=0.05)
 last_release_time = 0
 tap_timer = None
 DOUBLE_TAP_THRESHOLD = 0.3
+
+def kill_mode_processes():
+    """
+    Loops through mode_programs and terminates any process whose command-line
+    contains BOTH the program name AND 'ctohm' immediately followed by a digit.
+    """
+    # Regex to match 'ctohm' followed immediately by a digit (e.g., ctohm0, ctohm1)
+    ctohm_pattern = re.compile(r'ctohm\d')
+    my_pid = os.getpid()
+
+    # Get all running numeric PIDs from /proc
+    pids = [int(p) for p in os.listdir('/proc') if p.isdigit()]
+
+    for pid in pids:
+        if pid == my_pid:
+            continue
+
+        cmdline_path = f'/proc/{pid}/cmdline'
+        try:
+            with open(cmdline_path, 'rb') as f:
+                # /proc/[pid]/cmdline separates arguments by null bytes (\x00)
+                cmdline = f.read().decode('utf-8', errors='ignore').replace('\x00', ' ')
+        except (FileNotFoundError, ProcessLookupError, PermissionError):
+            # Process may have terminated or belongs to another user
+            continue
+
+        # Check if the process matches our ctohm<digit> pattern
+        if ctohm_pattern.search(cmdline):
+            for prog in mode_programs:
+                # Check if the target program name is also present in the command line
+                if prog in cmdline:
+                    try:
+                        print(f"Killing PID {pid}: {cmdline.strip()}")
+                        # Send SIGTERM first for graceful exit, fallback to SIGKILL if needed
+                        os.kill(pid, signal.SIGTERM)
+                    except ProcessLookupError:
+                        pass
+                    except PermissionError:
+                        print(f"Permission denied killing PID {pid}. (Run with sudo)")
+                    break
 
 # Drawing helper functions
 def draw_ohm(draw, x, y, fill="black"):
@@ -253,8 +295,8 @@ def on_double_tap():
 
         save_settings()
         selected_mode_name = mode_status[config["mode"]].strip()
-        # Probably need to see if we need to call the governor or something
-
+        kill_mode_processes()
+        subprocess.run(["udevadm", "trigger", "--subsystem-match=tty", "--action=add"], check=True)
         current_menu = "MAIN"
         window_top = 0
 

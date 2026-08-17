@@ -1,0 +1,1 @@
+socat STDIO,raw,echo=0 SYSTEM:"./escape255 | nc localhost 25232"
