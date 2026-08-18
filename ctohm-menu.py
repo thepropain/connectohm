@@ -9,7 +9,7 @@ from gpiozero import Button
 from luma.core.interface.serial import i2c
 from luma.core.render import canvas
 from luma.oled.device import ssd1306
-from PIL import ImageFont
+from PIL import ImageFont, Image, ImageDraw
 
 # Initialize display
 try:
@@ -175,47 +175,50 @@ def render_display():
 
     header_str = f"C  | {m_str} {b_str} {d_str}{p_str}{s_str}"
 
-    with canvas(device) as draw:
+    img = Image.new("1", (device.width, device.height), 0)
+    draw = ImageDraw.Draw(img)
+
+    # with canvas(device) as draw:
         # Draw our status box and fill it in
-        draw.rectangle((0, 0, 127, 16), fill="white")
-        draw.text((1, 2), header_str, font=oledfont, fill="black")
-        draw_ohm(draw, x=7, y=6, fill="black")
+    draw.rectangle((0, 0, 127, 16), fill="white")
+    draw.text((1, 2), header_str, font=oledfont, fill="black")
+    draw_ohm(draw, x=7, y=6, fill="black")
 
-        # Draw our menus and highlights (if any)
-        if current_menu in ["CONFIRM_REBOOT", "CONFIRM_SHUTDOWN"]:
-            # Custom prompt for confirmation
-            title = "REBOOT?" if current_menu == "CONFIRM_REBOOT" else "SHUT DOWN?"
-            draw.text((1, menu_y[0]), title, font=oledfont, fill="white")
+    # Draw our menus and highlights (if any)
+    if current_menu in ["CONFIRM_REBOOT", "CONFIRM_SHUTDOWN"]:
+        # Custom prompt for confirmation
+        title = "REBOOT?" if current_menu == "CONFIRM_REBOOT" else "SHUT DOWN?"
+        draw.text((1, menu_y[0]), title, font=oledfont, fill="white")
 
-            # Draw NO (index 1) and YES (index 2)
-            for idx in [1, 2]:
-                y_pos = menu_y[idx]
-                label = "NO" if idx == 1 else "YES"
-                if idx == inverted_item:
+        # Draw NO (index 1) and YES (index 2)
+        for idx in [1, 2]:
+            y_pos = menu_y[idx]
+            label = "NO" if idx == 1 else "YES"
+            if idx == inverted_item:
+                draw.rectangle((0, y_pos, 127, y_pos + 11), fill="white")
+                draw.text((1, y_pos), f"> {label}", font=oledfont, fill="black")
+            else:
+                prefix = "> " if idx == sub_cursor else "  "
+                draw.text((1, y_pos), f"{prefix}{label}", font=oledfont, fill="white")
+    else:
+        # Standard List Rendering
+        for row in range(3):
+            item_idx = window_top + row
+            if item_idx < len(active_list):
+                y_pos = menu_y[row]
+                text_str = active_list[item_idx]
+                display_text = text_str.strip() if current_menu != "MAIN" else text_str
+
+                if item_idx == inverted_item:
                     draw.rectangle((0, y_pos, 127, y_pos + 11), fill="white")
-                    draw.text((1, y_pos), f"> {label}", font=oledfont, fill="black")
+                    draw.text((1, y_pos), f"> {display_text}", font=oledfont, fill="black")
                 else:
-                    prefix = "> " if idx == sub_cursor else "  "
-                    draw.text((1, y_pos), f"{prefix}{label}", font=oledfont, fill="white")
-        else:
-            # Standard List Rendering
-            for row in range(3):
-                item_idx = window_top + row
-                if item_idx < len(active_list):
-                    y_pos = menu_y[row]
-                    text_str = active_list[item_idx]
-                    display_text = text_str.strip() if current_menu != "MAIN" else text_str
+                    prefix = "> " if item_idx == cursor_pos else "  "
+                    draw.text((1, y_pos), f"{prefix}{display_text}", font=oledfont, fill="white")
 
-                    if item_idx == inverted_item:
-                        draw.rectangle((0, y_pos, 127, y_pos + 11), fill="white")
-                        draw.text((1, y_pos), f"> {display_text}", font=oledfont, fill="black")
-                    else:
-                        prefix = "> " if item_idx == cursor_pos else "  "
-                        draw.text((1, y_pos), f"{prefix}{display_text}", font=oledfont, fill="white")
-
-        # WiFi status line
-        draw.line((0, 52, 127, 52), fill="white")
-        draw.text((1, 52), "SSN: not connected", font=oledfont, fill="white")
+        # WiFi status line (NOW HANDLED IN ctohm-ssn.py)
+        # draw.line((0, 52, 127, 52), fill="white")
+        # draw.text((1, 52), "SSN: not connected", font=oledfont, fill="white")
 
         # 4. Scroll Arrows (Disable during confirmations)
         if current_menu not in ["CONFIRM_REBOOT", "CONFIRM_SHUTDOWN"]:
@@ -223,6 +226,15 @@ def render_display():
                 draw_arrow_up(draw)
             if window_top + 3 < len(active_list):
                 draw_arrow_down(draw)
+
+        device.display(img)
+                
+        # Persist frame for external tools (like ctohm-wifi-status.py)
+        #try:
+        with open("/tmp/ctohm-fb.bin", "wb") as f:
+            f.write(img.tobytes())  # Or device._buffer
+        #except Exception:
+        #    pass
 
 def on_single_tap():
     global main_cursor, sub_cursor 
