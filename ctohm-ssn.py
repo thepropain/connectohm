@@ -70,7 +70,7 @@ def main():
 
     # 2. Load font
     try:
-        oledfont = ImageFont.load("oledfont.pil")
+        oledfont = ImageFont.load("/usr/local/lib/connectohm/oledfont.pil")
     except Exception:
         oledfont = ImageFont.load_default()
 

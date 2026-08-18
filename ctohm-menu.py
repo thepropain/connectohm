@@ -21,7 +21,7 @@ except Exception as e:
     exit(1)
 
 # Load font
-oledfont = ImageFont.load("oledfont.pil")
+oledfont = ImageFont.load("/usr/local/lib/connectohm/oledfont.pil")
 
 mode_programs = ["pppd", "tcpser", "slirp", "agetty"]
 # Menu data structures
@@ -230,11 +230,17 @@ def render_display():
         device.display(img)
                 
         # Persist frame for external tools (like ctohm-wifi-status.py)
-        #try:
-        with open("/tmp/ctohm-fb.bin", "wb") as f:
-            f.write(img.tobytes())  # Or device._buffer
-        #except Exception:
-        #    pass
+        try:
+            with open("/tmp/ctohm-fb.bin", "wb") as f:
+                f.write(img.tobytes())  # Or device._buffer
+        except Exception:
+            pass
+        
+        try:
+            # Calls the script using the current Python environment
+            subprocess.run(["python3", "/usr/local/bin/ctohm-ssn.py"], check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Error executing SSN updater: {e}")
 
 def on_single_tap():
     global main_cursor, sub_cursor 
