@@ -80,6 +80,6 @@ case "$mode" in
 
     "3") # SHELL
         echo "Launching Serial Shell on $node..."
-        exec agetty -L "${bitrate_vals[bitrate]}" "${node#/dev/}" vt100
+        exec agetty -a root -L "${bitrate_vals[bitrate]}" "${node#/dev/}" vt100
         ;;
 esac
