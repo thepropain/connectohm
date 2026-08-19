@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/bin/busybox telnetd -F -p 23 -l /usr/local/bin/ctohm-wifi.sh
+ExecStart=/bin/busybox telnetd -F -p 2323 -l /usr/local/bin/ctohm-wifi.sh
 
 # Run as root so the script can modify nmcli/system files and update the OLED
 User=root

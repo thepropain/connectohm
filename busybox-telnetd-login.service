@@ -1,0 +1,20 @@
+[Unit]
+Description=BusyBox Login Telnet Daemon
+After=network.target
+
+[Service]
+Type=simple
+# -F: Run in foreground so systemd can track the PID
+# -p 23: Standard Telnet port
+# -l /bin/login: Spawn standard Linux user authentication
+ExecStart=/bin/busybox telnetd -F -p 23 -l /bin/login
+
+# Must run as root to permit /bin/login to switch to authenticated users
+User=root
+Group=root
+
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
