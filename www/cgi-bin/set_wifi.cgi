@@ -65,7 +65,7 @@ if [ -n "$TARGET_SSID" ]; then
   fi
 
   # Sleep briefly and trigger your screen updater
-  (sleep 3 && python3 /usr/local/bin/ctohm-ssn.py) &
+  (sleep 3 && systemctl restart ctohm-menu.service) &
 
   echo "<p>Connection command initiated! Check the OLED display for updated status.</p>"
 else

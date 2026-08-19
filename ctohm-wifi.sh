@@ -133,11 +133,7 @@ if [ $NM_STATUS -eq 0 ]; then
   
   # Allow network state to settle and trigger OLED update
   sleep 1
-  if [ -x "/usr/local/bin/ctohm-ssn.py" ]; then
-    python3 /usr/local/bin/ctohm-ssn.py
-  elif [ -x "/root/connectohm/ctohm-ssn.py" ]; then
-    python3 /root/connectohm/ctohm-ssn.py
-  fi
+  systemctl restart ctohm-menu.service
 else
   echo "FAILED: Could not connect to $TARGET_SSID."
   echo "Check your credentials or signal and try again."

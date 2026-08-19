@@ -26,8 +26,8 @@ oledfont = ImageFont.load("/usr/local/lib/connectohm/oledfont.pil")
 mode_programs = ["pppd", "tcpser", "slirp", "agetty"]
 # Menu data structures
 main_menu = ["select mode", "select bitrate", "select data bits", "select parity", "select stop bits", "REBOOT", "SHUT DOWN"]
-mode_menu = ["  PPP", "  HAYES", "  SLIP/CSLIP", "  SHELL", "  NULL MODEM", "  LOOPBACK"]
-mode_status = ["PPP  ", "HAYES", "CSLIP", "SHELL", "NULLM", "LOOP "]
+mode_menu = ["  PPP", "  HAYES", "  SLIP/CSLIP", "  SHELL"]
+mode_status = ["PPP  ", "HAYES", "CSLIP", "SHELL"]
 bitrate_menu = ["  300", "  1200", "  2400", "  4800", "  9600", "  19200", "  38400", "  57600", "  115200", "  230400"]
 databits_menu = ["  5", "  6", "  7", "  8"]
 parity_menu = ["  NONE", "  EVEN", "  ODD"]
@@ -37,7 +37,7 @@ menu_y = [16, 28, 40]
 
 # Config structures and functions
 config = {
-    "mode": 1,        # Default: HAYES
+    "mode": 0,        # Default: PPP
     "bitrate": 8,     # Default: 115200
     "databits": 3,    # Default: 8
     "parity": 0,      # Default: NONE
@@ -45,25 +45,87 @@ config = {
 }
 config_file = "/etc/connectohm.conf"
 
-def save_settings():
+def new_settings():
     with open(config_file, "w") as f:
-        for key,val in config.items():
-            f.write(f"{key}={val}\n");
-    # *** TODO: if /dev/ctohm* exists, trigger udev or run ctohm-settings.sh
+        f.write("# All options start from 0.\n")
+        f.write("\n")
+        f.write("# Modes: PPP, Hayes, SLIP/CSLIP, shell\n")
+        f.write("# Default: PPP\n")
+        f.write("mode=0\n")
+        f.write("\n")
+        f.write("# Bitrates: 300, 1200, 2400, 4800, 9600, 19200, 28400, 57600, 115200, 230400\n")
+        f.write("# Default: 115200\n")
+        f.write("bitrate=8\n")
+        f.write("\n")
+        f.write("# Data bits: 5, 6, 7, 8\n")
+        f.write("# Default: 8\n")
+        f.write("databits=3\n")
+        f.write("\n")
+        f.write("# Parity: none, even, odd\n")
+        f.write("# Default: none\n")
+        f.write("parity: 0\n")
+        f.write("\n")
+        f.write("# Stop bits: 1, 2\n")
+        f.write("# Default: 1\n")
+        f.write("stopbits=0\n")
+
+
+def save_settings():
+    updated_lines = []
+    seen_keys = set()
+
+    # 1. Read and update existing lines if the file exists
+    if os.path.exists(config_file):
+        with open(config_file, "r") as f:
+            for line in f:
+                stripped = line.strip()
+
+                # Preserve comment lines and blank lines exactly as they are
+                if not stripped or stripped.startswith("#"):
+                    updated_lines.append(line)
+                    continue
+
+                # Process key=value lines
+                if "=" in stripped:
+                    key = stripped.split("=", 1)[0].strip()
+                    if key in config:
+                        # Replace with the new value from config dict
+                        updated_lines.append(f"{key}={config[key]}\n")
+                        seen_keys.add(key)
+                    else:
+                        # Keep untouched if not present in our config dict
+                        updated_lines.append(line)
+                else:
+                    # Keep any malformed/other lines untouched
+                    updated_lines.append(line)
+
+    # 2. Append any new keys from config that weren't already in the file
+    for key, val in config.items():
+        if key not in seen_keys:
+            updated_lines.append(f"{key}={val}\n")
+
+    # 3. Write back the updated content
+    with open(config_file, "w") as f:
+        f.writelines(updated_lines)
 
 def load_settings():
-    # *** TODO: ignore comment lines, recreate as fully commented config
     try:
         with open(config_file, "r") as f:
             for line in f:
-                key, val = line.split("=")
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#"):
+                    continue
+                if not "=" in stripped:
+                    continue
+                key, val = stripped.split("=")
+                if not key in config:
+                    continue
                 config[key]=int(val)
     except FileNotFoundError:
         print(f"{config_file} not found, recreating.")
-        save_settings()
+        new_settings()
     else:
         return
-        # *** TODO: if /dev/ctohm* exists, trigger udev or run ctohm-settings.sh
 
 load_settings()
 
@@ -155,6 +217,27 @@ def get_active_menu():
         case "STOPBITS": return stopbits_menu, sub_cursor
         case _: return confirm_menu, sub_cursor
 
+def get_wifi_ssid():
+    """
+    Returns 'SSID: <SSID>' if connected to Wi-Fi, or 'SSID: not connected'.
+    """
+    ssid = None
+
+    try:
+        res = subprocess.run(["iwgetid", "-r"], capture_output=True, text=True, timeout=2)
+        if res.returncode == 0 and res.stdout.strip():
+            ssid = res.stdout.strip()
+    except Exception:
+        pass
+
+    if ssid:
+        # "SSID: " is 6 chars, so clamp SSID to 12 chars
+        max_ssid_len = 12
+        truncated_ssid = ssid[:max_ssid_len]
+        return f"SSID: {truncated_ssid}"
+    else:
+        return "SSID: not connected"
+    
 # Main drawing function, updates the screen
 def render_display():
     global window_top
@@ -175,72 +258,59 @@ def render_display():
 
     header_str = f"C  | {m_str} {b_str} {d_str}{p_str}{s_str}"
 
-    img = Image.new("1", (device.width, device.height), 0)
-    draw = ImageDraw.Draw(img)
+    # img = Image.new("1", (device.width, device.height), 0)
+    # draw = ImageDraw.Draw(img)
 
-    # with canvas(device) as draw:
+    with canvas(device) as draw:
         # Draw our status box and fill it in
-    draw.rectangle((0, 0, 127, 16), fill="white")
-    draw.text((1, 2), header_str, font=oledfont, fill="black")
-    draw_ohm(draw, x=7, y=6, fill="black")
+        draw.rectangle((0, 0, 127, 16), fill="white")
+        draw.text((1, 2), header_str, font=oledfont, fill="black")
+        draw_ohm(draw, x=7, y=6, fill="black")
 
-    # Draw our menus and highlights (if any)
-    if current_menu in ["CONFIRM_REBOOT", "CONFIRM_SHUTDOWN"]:
-        # Custom prompt for confirmation
-        title = "REBOOT?" if current_menu == "CONFIRM_REBOOT" else "SHUT DOWN?"
-        draw.text((1, menu_y[0]), title, font=oledfont, fill="white")
+        # Draw our menus and highlights (if any)
+        if current_menu in ["CONFIRM_REBOOT", "CONFIRM_SHUTDOWN"]:
+            # Custom prompt for confirmation
+            title = "REBOOT?" if current_menu == "CONFIRM_REBOOT" else "SHUT DOWN?"
+            draw.text((1, menu_y[0]), title, font=oledfont, fill="white")
 
-        # Draw NO (index 1) and YES (index 2)
-        for idx in [1, 2]:
-            y_pos = menu_y[idx]
-            label = "NO" if idx == 1 else "YES"
-            if idx == inverted_item:
-                draw.rectangle((0, y_pos, 127, y_pos + 11), fill="white")
-                draw.text((1, y_pos), f"> {label}", font=oledfont, fill="black")
-            else:
-                prefix = "> " if idx == sub_cursor else "  "
-                draw.text((1, y_pos), f"{prefix}{label}", font=oledfont, fill="white")
-    else:
-        # Standard List Rendering
-        for row in range(3):
-            item_idx = window_top + row
-            if item_idx < len(active_list):
-                y_pos = menu_y[row]
-                text_str = active_list[item_idx]
-                display_text = text_str.strip() if current_menu != "MAIN" else text_str
-
-                if item_idx == inverted_item:
+            # Draw NO (index 1) and YES (index 2)
+            for idx in [1, 2]:
+                y_pos = menu_y[idx]
+                label = "NO" if idx == 1 else "YES"
+                if idx == inverted_item:
                     draw.rectangle((0, y_pos, 127, y_pos + 11), fill="white")
-                    draw.text((1, y_pos), f"> {display_text}", font=oledfont, fill="black")
+                    draw.text((1, y_pos), f"> {label}", font=oledfont, fill="black")
                 else:
-                    prefix = "> " if item_idx == cursor_pos else "  "
-                    draw.text((1, y_pos), f"{prefix}{display_text}", font=oledfont, fill="white")
+                    prefix = "> " if idx == sub_cursor else "  "
+                    draw.text((1, y_pos), f"{prefix}{label}", font=oledfont, fill="white")
+        else:
+            # Standard List Rendering
+            for row in range(3):
+                item_idx = window_top + row
+                if item_idx < len(active_list):
+                    y_pos = menu_y[row]
+                    text_str = active_list[item_idx]
+                    display_text = text_str.strip() if current_menu != "MAIN" else text_str
 
-        # WiFi status line (NOW HANDLED IN ctohm-ssn.py)
-        # draw.line((0, 52, 127, 52), fill="white")
-        # draw.text((1, 52), "SSN: not connected", font=oledfont, fill="white")
+                    if item_idx == inverted_item:
+                        draw.rectangle((0, y_pos, 127, y_pos + 11), fill="white")
+                        draw.text((1, y_pos), f"> {display_text}", font=oledfont, fill="black")
+                    else:
+                        prefix = "> " if item_idx == cursor_pos else "  "
+                        draw.text((1, y_pos), f"{prefix}{display_text}", font=oledfont, fill="white")
 
-        # 4. Scroll Arrows (Disable during confirmations)
-        if current_menu not in ["CONFIRM_REBOOT", "CONFIRM_SHUTDOWN"]:
-            if window_top > 0:
-                draw_arrow_up(draw)
-            if window_top + 3 < len(active_list):
-                draw_arrow_down(draw)
+            # 4. Scroll Arrows (Disable during confirmations)
+            if current_menu not in ["CONFIRM_REBOOT", "CONFIRM_SHUTDOWN"]:
+                if window_top > 0:
+                    draw_arrow_up(draw)
+                if window_top + 3 < len(active_list):
+                    draw_arrow_down(draw)
 
-        device.display(img)
-                
-        # Persist frame for external tools (like ctohm-wifi-status.py)
-        try:
-            with open("/tmp/ctohm-fb.bin", "wb") as f:
-                f.write(img.tobytes())  # Or device._buffer
-        except Exception:
-            pass
-        
-        try:
-            # Calls the script using the current Python environment
-            subprocess.run(["python3", "/usr/local/bin/ctohm-ssn.py"], check=True)
-        except subprocess.CalledProcessError as e:
-            print(f"Error executing SSN updater: {e}")
+            # 5. SSID status line
+            status_str = get_wifi_ssid()
+            draw.line((0, 52, 127, 52), fill="white")
+            draw.text((1, 52), status_str, font=oledfont, fill="white")
+
 
 def on_single_tap():
     global main_cursor, sub_cursor 
