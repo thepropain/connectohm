@@ -1,0 +1,24 @@
+[Unit]
+Description=OpenXiino Proxy Server for Palm OS
+After=network.target
+
+[Service]
+Type=simple
+# Run as your normal user (e.g. pi) so it has access to local files
+User=root
+# Working directory where OpenXiino is located
+WorkingDirectory=/root/OpenXiino
+
+# Point directly to the python interpreter INSIDE your venv:
+ExecStart=/root/OpenXiino/venv/bin/python dataserver.py
+
+# Restart policy in case it drops or encounters an unhandled exception
+Restart=always
+RestartSec=3
+
+# Optional: capture standard output/errors in system logs
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

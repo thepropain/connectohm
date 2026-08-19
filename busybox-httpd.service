@@ -1,0 +1,20 @@
+[Unit]
+Description=BusyBox HTTP Server for ConnectOhm Wi-Fi Portal
+After=network.target
+
+[Service]
+Type=simple
+# -f: run in foreground so systemd can monitor the process
+# -p 80: listen on port 80
+# -h /var/www/connectohm: web document root
+ExecStart=/bin/busybox httpd -f -p 80 -h /root/connectohm/www
+
+# Run as root so CGI scripts can manage Wi-Fi (nmcli) and write to /dev/i2c-1
+User=root
+Group=root
+
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
