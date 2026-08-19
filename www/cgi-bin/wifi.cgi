@@ -20,8 +20,37 @@ cat << 'EOF'
     <option value="" selected>-- [Select Scanned SSID] --</option>
 EOF
 
-# Query SSID, SECURITY, and numeric SIGNAL (0-100)
-nmcli -t -f SSID,SECURITY,SIGNAL dev wifi list 2>/dev/null | while IFS=':' read -r ssid sec sig; do
+# Query SSID, SECURITY, and numeric SIGNAL (0-100) via iwlist
+iwlist wlan0 scan 2>/dev/null | awk '
+  /Cell [0-9]+/ {
+    if (ssid != "") {
+      if (sec == "") sec = "Open"
+      print ssid ":" sec ":" sig
+    }
+    ssid = ""; sec = ""; sig = 0;
+  }
+  /Quality=/ {
+    if (match($0, /Quality=([0-9]+)\/([0-9]+)/, q)) {
+      sig = int((q[1] / q[2]) * 100)
+    } else if (match($0, /Signal level=([0-9]+)\/100/, q)) {
+      sig = int(q[1])
+    }
+  }
+  /Encryption key:off/ { sec = "Open" }
+  /IE: IEEE 802.11i\/WPA2/ { sec = "WPA2" }
+  /IE: WPA Version 1/ { if (sec == "") sec = "WPA" }
+  /ESSID:/ {
+    if (match($0, /ESSID:"([^"]*)"/, e)) {
+      ssid = e[1]
+    }
+  }
+  END {
+    if (ssid != "") {
+      if (sec == "") sec = "Open"
+      print ssid ":" sec ":" sig
+    }
+  }
+' | while IFS=':' read -r ssid sec sig; do
   if [ -n "$ssid" ]; then
     # Default open networks
     [ -z "$sec" ] && sec="Open"

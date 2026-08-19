@@ -20,7 +20,40 @@ trap 'rm -f "$SCAN_TMP"' EXIT INT TERM
 # Perform Wi-Fi scan and populate indexed list
 # Output format: Index: SSID [Security] Stars (Label)
 index=1
-nmcli -t -f SSID,SECURITY,SIGNAL dev wifi list 2>/dev/null | while IFS=':' read -r ssid sec sig; do
+# Perform fast wireless scan via iwlist and parse with awk
+iwlist wlan0 scan 2>/dev/null | awk '
+  /Cell [0-9]+/ {
+    if (ssid != "") {
+      # Default to Open if no encryption was flagged
+      if (sec == "") sec = "Open"
+      print ssid ":" sec ":" sig
+    }
+    ssid = ""; sec = ""; sig = 0;
+  }
+  /Quality=/ {
+    # Handles "Quality=58/70  Signal level=-52 dBm"
+    if (match($0, /Quality=([0-9]+)\/([0-9]+)/, q)) {
+      sig = int((q[1] / q[2]) * 100)
+    } else if (match($0, /Signal level=([0-9]+)\/100/, q)) {
+      sig = int(q[1])
+    }
+  }
+  /Encryption key:off/ { sec = "Open" }
+  /IE: IEEE 802.11i\/WPA2/ { sec = "WPA2" }
+  /IE: WPA Version 1/ { if (sec == "") sec = "WPA" }
+  /ESSID:/ {
+    # Extract SSID between quotes
+    if (match($0, /ESSID:"([^"]*)"/, e)) {
+      ssid = e[1]
+    }
+  }
+  END {
+    if (ssid != "") {
+      if (sec == "") sec = "Open"
+      print ssid ":" sec ":" sig
+    }
+  }
+' | while IFS=':' read -r ssid sec sig; do
   if [ -n "$ssid" ]; then
     # Sanitize security display
     [ -z "$sec" ] && sec="Open"
@@ -120,19 +153,61 @@ echo "--------------------------------------------------"
 echo "Connecting to '$TARGET_SSID'..."
 echo "Please wait..."
 
-if [ -n "$PASS" ]; then
-  nmcli dev wifi connect "$TARGET_SSID" password "$PASS"
+# 1. Clear out old connection network profiles in wpa_supplicant
+for net_id in $(wpa_cli -i wlan0 list_networks 2>/dev/null | awk 'NR>1 {print $1}'); do
+  wpa_cli -i wlan0 remove_network "$net_id" >/dev/null 2>&1
+done
+
+# 2. Allocate a new network block
+NET_ID=$(wpa_cli -i wlan0 add_network 2>/dev/null | tail -n 1)
+
+if [ -z "$NET_ID" ] || [ "$NET_ID" = "FAIL" ]; then
+  NM_STATUS=1
 else
-  nmcli dev wifi connect "$TARGET_SSID"
+  # 3. Configure SSID
+  wpa_cli -i wlan0 set_network "$NET_ID" ssid "\"$TARGET_SSID\"" >/dev/null 2>&1
+
+  # 4. Configure Authentication
+  if [ -n "$PASS" ]; then
+    # WPA/WPA2 Pre-Shared Key
+    wpa_cli -i wlan0 set_network "$NET_ID" psk "\"$PASS\"" >/dev/null 2>&1
+  else
+    # Open / unencrypted network
+    wpa_cli -i wlan0 set_network "$NET_ID" key_mgmt NONE >/dev/null 2>&1
+  fi
+
+  # 5. Enable network and save configuration
+  wpa_cli -i wlan0 enable_network "$NET_ID" >/dev/null 2>&1
+  wpa_cli -i wlan0 select_network "$NET_ID" >/dev/null 2>&1
+  wpa_cli -i wlan0 save_config >/dev/null 2>&1
+
+  # 6. Fast polling loop: Wait up to 10 seconds for association
+  connected=0
+  for i in $(seq 1 10); do
+    state=$(wpa_cli -i wlan0 status 2>/dev/null | awk -F= '$1=="wpa_state" {print $2}')
+    if [ "$state" = "COMPLETED" ]; then
+      connected=1
+      break
+    fi
+    sleep 1
+  done
+
+  if [ $connected -eq 1 ]; then
+    # 7. Request DHCP lease (using busybox udhcpc or dhcpcd)
+    if command -v udhcpc >/dev/null 2>&1; then
+      udhcpc -i wlan0 -n -q -t 5 >/dev/null 2>&1
+    elif command -v dhcpcd >/dev/null 2>&1; then
+      dhcpcd -n wlan0 >/dev/null 2>&1
+    fi
+    NM_STATUS=0
+  else
+    NM_STATUS=1
+  fi
 fi
-NM_STATUS=$?
 
 echo ""
 if [ $NM_STATUS -eq 0 ]; then
-  echo "SUCCESS: Connected to $TARGET_SSID!"
-  
-  # Allow network state to settle and trigger OLED update
-  sleep 1
+  echo "SUCCESS: Connected to $TARGET_SSID!"  
   systemctl restart ctohm-menu.service
 else
   echo "FAILED: Could not connect to $TARGET_SSID."

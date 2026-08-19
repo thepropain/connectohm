@@ -58,19 +58,55 @@ EOF
 if [ -n "$TARGET_SSID" ]; then
   echo "<p>Sending connection request to system...</p>"
 
-  if [ -n "$PASS" ]; then
-    nmcli dev wifi connect "$TARGET_SSID" password "$PASS" >/dev/null 2>&1 &
-  else
-    nmcli dev wifi connect "$TARGET_SSID" >/dev/null 2>&1 &
-  fi
+# Run wpa_cli connection, DHCP, and menu restart in background
+  (
+    # 1. Clear old networks
+    for net_id in $(wpa_cli -i wlan0 list_networks 2>/dev/null | awk 'NR>1 {print $1}'); do
+      wpa_cli -i wlan0 remove_network "$net_id" >/dev/null 2>&1
+    done
 
-  # Sleep briefly and trigger your screen updater
-  (sleep 3 && systemctl restart ctohm-menu.service) &
+    # 2. Add new network
+    NET_ID=$(wpa_cli -i wlan0 add_network 2>/dev/null | tail -n 1)
 
+    if [ -n "$NET_ID" ] && [ "$NET_ID" != "FAIL" ]; then
+      # 3. Configure SSID
+      wpa_cli -i wlan0 set_network "$NET_ID" ssid "\"$TARGET_SSID\"" >/dev/null 2>&1
+
+      # 4. Configure Authentication
+      if [ -n "$PASS" ]; then
+        wpa_cli -i wlan0 set_network "$NET_ID" psk "\"$PASS\"" >/dev/null 2>&1
+      else
+        wpa_cli -i wlan0 set_network "$NET_ID" key_mgmt NONE >/dev/null 2>&1
+      fi
+
+      # 5. Enable & save
+      wpa_cli -i wlan0 enable_network "$NET_ID" >/dev/null 2>&1
+      wpa_cli -i wlan0 select_network "$NET_ID" >/dev/null 2>&1
+      wpa_cli -i wlan0 save_config >/dev/null 2>&1
+
+      # 6. Polling loop: Wait up to 10 seconds for association
+      for i in $(seq 1 10); do
+        state=$(wpa_cli -i wlan0 status 2>/dev/null | awk -F= '$1=="wpa_state" {print $2}')
+        if [ "$state" = "COMPLETED" ]; then
+          # 7. Request DHCP lease
+          if command -v udhcpc >/dev/null 2>&1; then
+            udhcpc -i wlan0 -n -q -t 5 >/dev/null 2>&1
+          elif command -v dhcpcd >/dev/null 2>&1; then
+            dhcpcd -n wlan0 >/dev/null 2>&1
+          fi
+          break
+        fi
+        sleep 1
+      done
+    fi
+
+    # 8. Restart menu service so OLED refreshes with new SSID/IP
+    systemctl restart ctohm-menu.service >/dev/null 2>&1
+  ) >/dev/null 2>&1 &
+  
   echo "<p>Connection command initiated! Check the OLED display for updated status.</p>"
 else
   echo "<p><font color=\"red\"><b>Error:</b> No SSID was selected or entered.</font></p>"
-  echo "<p><small>Debug received payload: <code>${POST_DATA}</code></small></p>"
 fi
 
 echo '<hr>'
