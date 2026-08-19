@@ -18,14 +18,30 @@
 
 - pap-secrets -> /etc/ppp/pap-secrets
 
+- pap-secrets -> /root/.pap-secrets (admittedly, this may be redundant)
+
 - ctohm-halt<sup>1</sup> -> /lib/systemd/system-shutdown/ctohm-halt
 
 - ctohm-boot<sup>2</sup> -> /usr/local/bin/ctohm-boot
 
 - tcpser<sup>3</sup> -> /usr/bin/tcpser
 
+- ctohm-wifi.sh -> /usr/local/bin/ctohm-wifi.sh
+
+- ctohm-boot.service -> /usr/local/bin/ctohm-boot.service
+
+- busybox-telnetd-login.service -> /etc/systemd/system/busybox-telnetd-login.service
+
+- busybox-telnetd.service -> /etc/systemd/system/busybox-telnetd.service
+
+- openxiino.service<sup>4</sup> -> /etc/systemd/system/openxiino.service
+
+- busybox-httpd.service -> /etc/systemd/system/busybox-httpd.service
+
 <sup>1</sup> obtained from compiling ctohm-halt.c (`gcc -O2 ctohm-halt.c -o ctohm-halt`)
 
 <sup>2</sup> obtained from compiling ctohm-boot.c (`gcc -O2 ctohm-boot.c -o ctohm-boot`)
 
 <sup>3</sup> customized version (see https://github.com/thepropain/tcpser)
+
+<sup>4</sup> see https://github.com/futuraperdita/OpenXiino

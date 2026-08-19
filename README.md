@@ -1,22 +1,42 @@
-![connectohm logo.png](misc/connectohm%20logo.png)
-
 # ConnectOhm
 
-A Swiss army knife for retrotech Internet connectivity. I'm an old programmer who's been out of the loop and out of practice for 20+ years, so I'm leaning on AI for a lot of this project. I do plan on giving all the code a thorough inspection and cIean-up before i call it Officially Useable. In the meantime, inspect ALL OF THIS CODE before you use it.
+---
 
-# WARNING! THIS PROJECT IS NOT IN A STATE THAT IT CAN BE SIMPLY INSTALLED AND EXPECTED TO WORK. I'LL GET IT TO THAT POINT EVENTUALLY. I MADE IT PUBLIC SO I CAN SHOW OFF WHAT I'VE DONE SO FAR AND GET SOME INPUT FROM PEOPLE I KNOW.
+## Turn a Raspberry Pi into a Swiss army knife for retrotech <-> WiFi/Internet connectivity
 
-###### List of features to be added down the line
+If it's got a serial port, then it's got Wifi. Easy peasy!
 
-- adjustable voltage/polarity DB-9 on the Pi's pins
+---
 
-- PLIP via external MCU
+###### UP FRONT WARNINGS
 
-- Raw multicast hub, for as many adapters as you like (for example, I've got a 5 port USB-to-serial box). Dunno what use that might be, but it does feel like it's just barely within scope.
+- While I CAN code from scratch, I'm old and lazy, and have been relying heavily on Google Gemini for a lot of the scut work and most of the "I don't feel like writing data pipes and twiddles and regular expressions" parts. Additionally, until the first release, expect that there are untested/broken/insecure things.
+
+- This project is currently NOT in a "clone and go" state. Ideally, I'll have both an installable package and a preinstalled SD card image available.
+
+---
+
+###### Current features
+
+- Provides SLIP, CSLIP, PPP, Hayes-compatible modem emulation, and direct shell access via USB-> serial
+
+- Serial parameters and connection mode selectable via a single button and external display
+
+- WiFi configurable via HTTP, telnet, or shell command line.
+
+###### Planned Features (in no particular order)
+
+- Tiny software footprint.
+
+- An adjustable voltage/logic invertable DB-9 on the Pi's pins, with the idea being "bodge/splice together a DB-9 and whatever weird connector you need, and ConnectOhm can handle the conversion" (Looking at you, pre-Perifractic Commodore; though there's plenty of others)
+
+- PLIP via external MCU, assuming I can get the nybbles/bytes
+
+- SSH connections from Hayes mode
 
 ###### Possible future inclusions
 
-Assuming I can obtain ownership/access to the relevant hardware.
+Assuming I can find and afford the relevant hardware, or at least get access to it.
 
 - Multi-Link PPP (MLPPP - RFC 1990)
 
@@ -28,7 +48,15 @@ Assuming I can obtain ownership/access to the relevant hardware.
 
 - AX.25 (Packet Radio / KISS TNC IP)
 
-###### What I'm working on now
+###### Current Project Status
 
-- WiFi configuration backends.
-- Need to scrounge up some dinero for some parts.
+**08 Aug 2026: core functionality achieved!** Feels like a milestone to me. I've got some meatspace issues coming up soon that may slow/stall development.
+
+###### The TO DO List
+
+- Documentation: parts needed, assembly, usage, installation (that last may be a while...)
+- Firewall the WiFi configurators and any other servers ConnectOhm ends up with.
+- Give everything a good shakedown.
+- Maybe move away from Python in favor of C
+- Reduce software footprint
+- Need to scrounge up some dinero for some parts. (I will happily accept donations of required parts, money, and retrotech to test!)
