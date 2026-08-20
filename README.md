@@ -34,6 +34,8 @@ If it's got a serial port, then it's got Wifi. Easy peasy!
 
 - SSH connections from Hayes mode
 
+- Bi-directional charset translations for SHELL mode and Hayes connections.
+
 ###### Possible future inclusions
 
 Assuming I can find and afford the relevant hardware, or at least get access to it.
