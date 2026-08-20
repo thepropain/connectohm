@@ -26,4 +26,4 @@ Of course you also need an appropriate beefy power supply. I also recommend a bo
 
 As for the software, I've still got to work on an installer and/or an SD card image. I've got everything set up to run as root. Start with a fresh install of Raspberry Pi OS (Bookworm, 32-bit). In your /root directory, clone ConnectOhm and OpenXiino. Make the symlinks listed in SYMLINKS.md. Try to run stuff, apt install whatever packages are needed.
 
-
+I don't think anything depends on the root password or having a connectohm user, but it probably wouldn't hurt to change the root password to "connectohm" and create a user named "connectohm" with the same password.

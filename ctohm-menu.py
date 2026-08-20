@@ -45,6 +45,57 @@ config = {
 }
 config_file = "/etc/connectohm.conf"
 
+# Global reference to hold the active drawing image
+current_image = None
+
+def save_oled_gif(signum=None, frame=None):
+    """Signal handler for SIGUSR1 to dump the current OLED screen to a 2x scaled GIF."""
+    global current_image
+    if current_image is None:
+        return
+    try:
+        oled_w, oled_h = 128, 64
+        scale = 2
+        
+        # Color definitions (RGB)
+        c_off = (0, 0, 0)          # Black
+        c_yellow = (255, 255, 0)   # Yellow (Rows 0-15)
+        c_cyan = (0, 255, 255)     # Cyan (Rows 16-63)
+
+        rgb_img = Image.new("RGB", (oled_w, oled_h+2), c_off)
+        mono_pixels = current_image.convert("1").load()
+        rgb_pixels = rgb_img.load()
+
+        for y in range(oled_h):
+            active_color = c_yellow if y < 16 else c_cyan
+            this_y = y
+            if y > 15:
+                this_y += 2
+            for x in range(oled_w):
+                if mono_pixels[x, y]:
+                    rgb_pixels[x, this_y] = active_color
+                else:
+                    rgb_pixels[x, this_y] = c_off
+
+        # Black out lines 16 & 17
+        for x in range(oled_w):
+            rgb_pixels[x, 16] = c_off
+            rgb_pixels[x, 17] = c_off
+
+        # Scale 2x with NEAREST for crisp square pixel blocks
+        scaled_img = rgb_img.resize((oled_w * scale, oled_h * scale), resample=Image.NEAREST)
+        gif_img = scaled_img.convert("P", palette=Image.ADAPTIVE)
+        
+        # Save to web root (or wherever you want it accessible)
+        out_path = "/root/connectohm/oled.gif"
+        gif_img.save(out_path, format="GIF")
+        print(f"[ctohm-menu] Screenshot saved to {out_path}")
+    except Exception as e:
+        print(f"[ctohm-menu] Failed to save screenshot: {e}")
+
+# Register SIGUSR1 signal handler
+signal.signal(signal.SIGUSR1, save_oled_gif)
+
 def new_settings():
     with open(config_file, "w") as f:
         f.write("# All options start from 0.\n")
@@ -241,6 +292,7 @@ def get_wifi_ssid():
 # Main drawing function, updates the screen
 def render_display():
     global window_top
+    global current_image
     active_list, cursor_pos = get_active_menu()
 
     # Windowing scroll math
@@ -261,7 +313,8 @@ def render_display():
     # img = Image.new("1", (device.width, device.height), 0)
     # draw = ImageDraw.Draw(img)
 
-    with canvas(device) as draw:
+    c = canvas(device)
+    with c as draw:
         # Draw our status box and fill it in
         draw.rectangle((0, 0, 127, 16), fill="white")
         draw.text((1, 2), header_str, font=oledfont, fill="black")
@@ -311,6 +364,8 @@ def render_display():
             draw.line((0, 52, 127, 52), fill="white")
             draw.text((1, 52), status_str, font=oledfont, fill="white")
 
+            # 6. Save screen in case save_oled_gif gets triggered
+            current_image = c.image.copy()
 
 def on_single_tap():
     global main_cursor, sub_cursor 
